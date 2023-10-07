@@ -1,0 +1,24 @@
+<PreferenceScreen xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:android="http://schemas.android.com/apk/res/android">
+        <SwitchPreferenceCompat
+            android:key="mode"
+            app:title="@string/attachment_title"
+            android:summaryOff="Đang tắt"
+            android:summaryOn="Đang bật"/>
+        <PreferenceCategory
+            android:key="pumpPreference"
+            app:title="Điều khiển các máy bơm">
+                <SwitchPreferenceCompat
+                    android:key="pump1"
+                    app:title="Bơm 1"/>
+                <SwitchPreferenceCompat
+                    android:key="van1"
+                    app:title="Van 1" />
+                <SwitchPreferenceCompat
+                    android:key="van2"
+                    app:title="Van 2" />
+                <SwitchPreferenceCompat
+                    android:key="van3"
+                    app:title="Van 3" />
+        </PreferenceCategory>
+</PreferenceScreen>
