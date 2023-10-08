@@ -31,10 +31,10 @@
             android:text="50%"
             app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintEnd_toEndOf="parent"
-            app:layout_constraintHorizontal_bias="0.35"
+            app:layout_constraintHorizontal_bias="0.258"
             app:layout_constraintStart_toEndOf="@+id/progressBar3"
             app:layout_constraintTop_toTopOf="parent"
-            app:layout_constraintVertical_bias="0.418" />
+            app:layout_constraintVertical_bias="0.417" />
 
         <TextView
             android:id="@+id/header3"
@@ -144,7 +144,7 @@
             android:id="@+id/textView2"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginTop="44dp"
+            android:layout_marginTop="36dp"
             android:text="Node 1"
             android:textSize="18dp"
             app:layout_constraintEnd_toEndOf="parent"
@@ -323,6 +323,24 @@
         android:id="@+id/settings"
         android:layout_width="match_parent"
         android:layout_height="0dip"
-        android:layout_weight="53"/>
+        android:layout_weight="48"/>
+    <androidx.constraintlayout.widget.ConstraintLayout
+        android:id="@+id/syncButtonContainer"
+        android:layout_width="match_parent"
+        android:layout_height="0dip"
+        android:layout_weight="12">
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/syncButton"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Đồng bộ ThingSpeak: Đang tắt"
+            android:backgroundTint="@color/teal_200"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="parent"
+            />
+    </androidx.constraintlayout.widget.ConstraintLayout>
 
 </LinearLayout>

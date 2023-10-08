@@ -6,6 +6,7 @@ import android.os.Bundle;
 import android.text.Editable;
 import android.text.TextWatcher;
 import android.view.Menu;
+import android.view.View;
 import android.widget.EditText;
 import android.widget.ProgressBar;
 import android.widget.TextView;
@@ -22,6 +23,7 @@ import androidx.preference.SwitchPreferenceCompat;
 
 import com.google.android.gms.tasks.OnCompleteListener;
 import com.google.android.gms.tasks.Task;
+import com.google.android.material.button.MaterialButton;
 import com.google.firebase.database.DataSnapshot;
 import com.google.firebase.database.DatabaseError;
 import com.google.firebase.database.DatabaseReference;
@@ -62,9 +64,11 @@ public class SettingsActivity extends AppCompatActivity {
     ProgressBar progressBar_humid1, progressBar_humid2, progressBar_humid3;
     TextView txt_humid1, txt_humid2, txt_humid3, txt_temp1, txt_temp2, txt_temp3;
     EditText humidThresholdEditText;
+    MaterialButton syncButton;
     // Scheduler
     private final ScheduledExecutorService scheduler =
             Executors.newScheduledThreadPool(1);
+    private boolean isSchedulerRunning = false;
     // HTTP
     private static SyncHttpClient client = new SyncHttpClient ();
     static final String thingSpeakPostAPI = "https://api.thingspeak.com/update.json";
@@ -87,6 +91,7 @@ public class SettingsActivity extends AppCompatActivity {
             actionBar.setBackgroundDrawable(new ColorDrawable(Color.parseColor("#FF03DAC5")));
         }
         // binding UI
+        syncButton = findViewById(R.id.syncButton);
         progressBar_humid1 = findViewById(R.id.progressBar1);
         progressBar_humid2 = findViewById(R.id.progressBar2);
         progressBar_humid3 = findViewById(R.id.progressBar3);
@@ -137,12 +142,21 @@ public class SettingsActivity extends AppCompatActivity {
         
         
         // sync data from firebase to thingspeak
-        syncFirebaseToThingSpeak();
+        syncButton.setOnClickListener(view -> {
+            if (!isSchedulerRunning){
+                syncFirebaseToThingSpeak();
+                ((MaterialButton) view).setText("Đồng bộ ThingSpeak: Đang bật");
+                isSchedulerRunning = true;
+            } else {
+                isSchedulerRunning = false;
+                ((MaterialButton) view).setText("Đồng bộ ThingSpeak: Đang tắt");
+                scheduler.shutdown();
+            }
+
+        });
     }
 
     private void syncFirebaseToThingSpeak() {
-//        Runnable testJob = () -> System.out.println("PING!");
-//        scheduler.scheduleAtFixedRate(testJob, 3L, 3L, TimeUnit.SECONDS);
         Runnable syncJob = () -> {
             rp.add("api_key", "OIC6SQI33DRM4H08");
             synchronized (humid1){
@@ -173,7 +187,8 @@ public class SettingsActivity extends AppCompatActivity {
                     System.out.println("SYNC TO THINGSPEAK: FAIL - " + errorResponse.toString());                }
             });
         };
-        scheduler.scheduleAtFixedRate(syncJob,10L, 300L, TimeUnit.SECONDS);
+
+        scheduler.scheduleAtFixedRate(syncJob,1L, 300L, TimeUnit.SECONDS);
     }
 
     private void retrieveData() {
