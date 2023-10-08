@@ -35,6 +35,7 @@ import com.loopj.android.http.JsonHttpResponseHandler;
 import com.loopj.android.http.RequestParams;
 import com.loopj.android.http.SyncHttpClient;
 
+import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
@@ -66,8 +67,7 @@ public class SettingsActivity extends AppCompatActivity {
     EditText humidThresholdEditText;
     MaterialButton syncButton;
     // Scheduler
-    private final ScheduledExecutorService scheduler =
-            Executors.newScheduledThreadPool(1);
+    private ScheduledExecutorService scheduler;
     private boolean isSchedulerRunning = false;
     // HTTP
     private static SyncHttpClient client = new SyncHttpClient ();
@@ -144,6 +144,7 @@ public class SettingsActivity extends AppCompatActivity {
         // sync data from firebase to thingspeak
         syncButton.setOnClickListener(view -> {
             if (!isSchedulerRunning){
+                scheduler = Executors.newScheduledThreadPool(1);
                 syncFirebaseToThingSpeak();
                 ((MaterialButton) view).setText("Đồng bộ ThingSpeak: Đang bật");
                 isSchedulerRunning = true;
@@ -182,13 +183,24 @@ public class SettingsActivity extends AppCompatActivity {
                 public void onSuccess(int statusCode, Header[] headers, JSONObject response) {
                     System.out.println("SYNC TO THINGSPEAK: SUCCESS - " + response.toString());
                 }
+
+                @Override
+                public void onSuccess(int statusCode, Header[] headers, JSONArray response) {
+                    System.out.println("SYNC TO THINGSPEAK: SUCCESS - " + response.toString());
+                }
+
+                @Override
+                public void onFailure(int statusCode, Header[] headers, String responseString, Throwable throwable) {
+                    System.out.println("SYNC TO THINGSPEAK: FAIL - " + statusCode + " - " + throwable.getMessage());
+                }
+
                 @Override
                 public void onFailure(int statusCode, Header[] headers, Throwable throwable, JSONObject errorResponse) {
                     System.out.println("SYNC TO THINGSPEAK: FAIL - " + errorResponse.toString());                }
             });
         };
 
-        scheduler.scheduleAtFixedRate(syncJob,1L, 300L, TimeUnit.SECONDS);
+        scheduler.scheduleAtFixedRate(syncJob,1L, 150L, TimeUnit.SECONDS);
     }
 
     private void retrieveData() {
