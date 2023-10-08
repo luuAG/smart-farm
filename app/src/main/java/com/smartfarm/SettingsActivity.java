@@ -27,21 +27,49 @@ import com.google.firebase.database.DatabaseError;
 import com.google.firebase.database.DatabaseReference;
 import com.google.firebase.database.FirebaseDatabase;
 import com.google.firebase.database.ValueEventListener;
+import com.loopj.android.http.AsyncHttpClient;
+import com.loopj.android.http.AsyncHttpResponseHandler;
+import com.loopj.android.http.JsonHttpResponseHandler;
+import com.loopj.android.http.RequestParams;
+import com.loopj.android.http.SyncHttpClient;
+
+import org.json.JSONException;
+import org.json.JSONObject;
 
 import java.util.Objects;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
+
+import cz.msebera.android.httpclient.Header;
 
 public class SettingsActivity extends AppCompatActivity {
     FirebaseDatabase firebaseDatabase;
     DatabaseReference databaseReference;
     DataSnapshot setValueSnapshot, sensorSnapshot, relaySnapshot;
     // data
-    Long humid1, humid2, humid3, temp1, temp2, temp3;
+    static final AtomicReference<Long> humid1 = new AtomicReference<>(0L);
+    static final AtomicReference<Long> humid2 = new AtomicReference<>(0L);
+    static final AtomicReference<Long> humid3 = new AtomicReference<>(0L);
+    static final AtomicReference<Long> temp1 = new AtomicReference<>(0L);
+    static final AtomicReference<Long> temp2 = new AtomicReference<>(0L);
+    static final AtomicReference<Long> temp3 = new AtomicReference<>(0L);
     Long humidThreshold;
     Boolean relay1, relay2, relay3, relay4, mode;
     // UI
     ProgressBar progressBar_humid1, progressBar_humid2, progressBar_humid3;
     TextView txt_humid1, txt_humid2, txt_humid3, txt_temp1, txt_temp2, txt_temp3;
     EditText humidThresholdEditText;
+    // Scheduler
+    private final ScheduledExecutorService scheduler =
+            Executors.newScheduledThreadPool(1);
+    // HTTP
+    private static SyncHttpClient client = new SyncHttpClient ();
+    static final String thingSpeakPostAPI = "https://api.thingspeak.com/update.json";
+    static final RequestParams rp = new RequestParams();
+
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -85,6 +113,7 @@ public class SettingsActivity extends AppCompatActivity {
                 else{
                     humidThreshold = Long.valueOf(editable.toString());
                 }
+                humidThresholdEditText.setSelection(editable.toString().length());
                 if (setValueSnapshot != null){
                     setValueSnapshot.getRef().addListenerForSingleValueEvent(new ValueEventListener() {
                         @Override
@@ -105,6 +134,46 @@ public class SettingsActivity extends AppCompatActivity {
         firebaseDatabase = FirebaseDatabase.getInstance();
         databaseReference = firebaseDatabase.getReference("RoI7PGtChhPFjxGQk7WRN4Cs3Mi2");
         retrieveData();
+        
+        
+        // sync data from firebase to thingspeak
+        syncFirebaseToThingSpeak();
+    }
+
+    private void syncFirebaseToThingSpeak() {
+//        Runnable testJob = () -> System.out.println("PING!");
+//        scheduler.scheduleAtFixedRate(testJob, 3L, 3L, TimeUnit.SECONDS);
+        Runnable syncJob = () -> {
+            rp.add("api_key", "OIC6SQI33DRM4H08");
+            synchronized (humid1){
+                rp.add("field4", String.valueOf(humid1.get()));
+            }
+            synchronized (humid2){
+                rp.add("field5", String.valueOf(humid2.get()));
+            }
+            synchronized (humid3){
+                rp.add("field6", String.valueOf(humid3.get()));
+            }
+            synchronized (temp1){
+                rp.add("field1", String.valueOf(temp1.get()));
+            }
+            synchronized (temp2){
+                rp.add("field2", String.valueOf(temp2.get()));
+            }
+            synchronized (temp3){
+                rp.add("field3", String.valueOf(temp3.get()));
+            }
+            client.post(thingSpeakPostAPI, rp, new JsonHttpResponseHandler() {
+                @Override
+                public void onSuccess(int statusCode, Header[] headers, JSONObject response) {
+                    System.out.println("SYNC TO THINGSPEAK: SUCCESS - " + response.toString());
+                }
+                @Override
+                public void onFailure(int statusCode, Header[] headers, Throwable throwable, JSONObject errorResponse) {
+                    System.out.println("SYNC TO THINGSPEAK: FAIL - " + errorResponse.toString());                }
+            });
+        };
+        scheduler.scheduleAtFixedRate(syncJob,10L, 300L, TimeUnit.SECONDS);
     }
 
     private void retrieveData() {
@@ -141,40 +210,64 @@ public class SettingsActivity extends AppCompatActivity {
     private void controlPumpsAsHumidityChanged() {
         if (!mode)
             return;
-        if (humid1 < humidThreshold){ // turn the pump on
-            updateData(relaySnapshot.getRef().child("relay_2"), "0");
-        } else if (humid1 > humidThreshold + 5){
-            updateData(relaySnapshot.getRef().child("relay_2"), "1");
+        synchronized (humid1){
+            if (humid1.get() < humidThreshold){ // turn the pump on
+                updateData(relaySnapshot.getRef().child("relay_2"), "0");
+            } else if (humid1.get() > humidThreshold + 5){
+                updateData(relaySnapshot.getRef().child("relay_2"), "1");
+            }        }
+        synchronized (humid2){
+            if (humid2.get() < humidThreshold){ // turn the pump on
+                updateData(relaySnapshot.getRef().child("relay_3"), "0");
+            } else if (humid2.get() > humidThreshold + 5){
+                updateData(relaySnapshot.getRef().child("relay_3"), "1");
+            }
         }
-        if (humid2 < humidThreshold){ // turn the pump on
-            updateData(relaySnapshot.getRef().child("relay_3"), "0");
-        } else if (humid2 > humidThreshold + 5){
-            updateData(relaySnapshot.getRef().child("relay_3"), "1");
+        synchronized (humid3){
+            if (humid3.get() < humidThreshold){ // turn the pump on
+                updateData(relaySnapshot.getRef().child("relay_4"), "0");
+            } else if (humid3.get() > humidThreshold + 5){
+                updateData(relaySnapshot.getRef().child("relay_4"), "1");
+            }
         }
-        if (humid3 < humidThreshold){ // turn the pump on
-            updateData(relaySnapshot.getRef().child("relay_4"), "0");
-        } else if (humid3 > humidThreshold + 5){
-            updateData(relaySnapshot.getRef().child("relay_4"), "1");
-        }
+
     }
 
     private void bindDataToUI(DataSnapshot relaySnapshot, DataSnapshot sensorSnapshot, DataSnapshot setValueSnapshot) {
-        humid1 = sensorSnapshot.child("humi_soil_1").getValue(Long.class);
-        humid2 = sensorSnapshot.child("humi_soil_2").getValue(Long.class);
-        humid3 = sensorSnapshot.child("humi_soil_3").getValue(Long.class);
-        progressBar_humid1.setProgress(Math.toIntExact(humid1));
-        progressBar_humid2.setProgress(Math.toIntExact(humid2));
-        progressBar_humid3.setProgress(Math.toIntExact(humid3));
-        txt_humid1.setText(humid1 + "%");
-        txt_humid2.setText(humid2 + "%");
-        txt_humid3.setText(humid3 + "%");
+        synchronized (humid1){
+            System.out.println("HUMID1 UPDATED: " + humid1.get());
+            humid1.set(sensorSnapshot.child("humi_soil_1").getValue(Long.class));
+        }
+        synchronized (humid2){
+            System.out.println("HUMID2 UPDATED: " + humid2.get());
+            humid2.set(sensorSnapshot.child("humi_soil_2").getValue(Long.class));
+        }
+        synchronized (humid3){
+            System.out.println("HUMID3 UPDATED: " + humid3.get());
+            humid3.set(sensorSnapshot.child("humi_soil_3").getValue(Long.class));
+        }
+        progressBar_humid1.setProgress(Math.toIntExact(humid1.get()));
+        progressBar_humid2.setProgress(Math.toIntExact(humid2.get()));
+        progressBar_humid3.setProgress(Math.toIntExact(humid3.get()));
+        txt_humid1.setText(humid1.get() + "%");
+        txt_humid2.setText(humid2.get() + "%");
+        txt_humid3.setText(humid3.get() + "%");
 
-        temp1 = sensorSnapshot.child("temp_soil_1").getValue(Long.class);
-        temp2 = sensorSnapshot.child("temp_soil_2").getValue(Long.class);
-        temp3 = sensorSnapshot.child("temp_soil_3").getValue(Long.class);
-        txt_temp1.setText(temp1 + "°C");
-        txt_temp2.setText(temp2 + "°C");
-        txt_temp3.setText(temp3 + "°C");
+        synchronized (temp1){
+            System.out.println("TEMP1 UPDATED: " + temp1.get());
+            temp1.set(sensorSnapshot.child("temp_soil_1").getValue(Long.class));
+        }
+        synchronized (temp2){
+            System.out.println("TEMP2 UPDATED: " + temp2.get());
+            temp2.set(sensorSnapshot.child("temp_soil_2").getValue(Long.class));
+        }
+        synchronized (temp3){
+            System.out.println("TEMP3 UPDATED: " + temp3.get());
+            temp3.set(sensorSnapshot.child("temp_soil_3").getValue(Long.class));
+        }
+        txt_temp1.setText(temp1.get() + "°C");
+        txt_temp2.setText(temp2.get() + "°C");
+        txt_temp3.setText(temp3.get() + "°C");
 
         humidThreshold = Long.parseLong(setValueSnapshot.child("Soil").getValue(String.class));
         humidThresholdEditText.setText(humidThreshold.toString());
