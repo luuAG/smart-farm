@@ -67,8 +67,9 @@ public class SettingsActivity extends AppCompatActivity {
     EditText humidThresholdEditText;
     MaterialButton syncButton;
     // Scheduler
-    private ScheduledExecutorService scheduler;
+    private ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(1);;
     private boolean isSchedulerRunning = false;
+    ScheduledFuture<?> syncJobHandler = null;
     // HTTP
     private static SyncHttpClient client = new SyncHttpClient ();
     static final String thingSpeakPostAPI = "https://api.thingspeak.com/update.json";
@@ -144,14 +145,13 @@ public class SettingsActivity extends AppCompatActivity {
         // sync data from firebase to thingspeak
         syncButton.setOnClickListener(view -> {
             if (!isSchedulerRunning){
-                scheduler = Executors.newScheduledThreadPool(1);
                 syncFirebaseToThingSpeak();
                 ((MaterialButton) view).setText("Đồng bộ ThingSpeak: Đang bật");
                 isSchedulerRunning = true;
             } else {
                 isSchedulerRunning = false;
                 ((MaterialButton) view).setText("Đồng bộ ThingSpeak: Đang tắt");
-                scheduler.shutdown();
+                syncJobHandler.cancel(true);
             }
 
         });
@@ -200,7 +200,7 @@ public class SettingsActivity extends AppCompatActivity {
             });
         };
 
-        scheduler.scheduleAtFixedRate(syncJob,1L, 150L, TimeUnit.SECONDS);
+        syncJobHandler = scheduler.scheduleAtFixedRate(syncJob,1L, 15L, TimeUnit.SECONDS);
     }
 
     private void retrieveData() {
@@ -322,6 +322,8 @@ public class SettingsActivity extends AppCompatActivity {
             fragmentManager.beginTransaction()
                     .replace(R.id.settings, settingsFragment)
                     .commit();
+        else
+            System.out.println("SETTINGSFRAGMENT is destroyed!");
     }
     private void updateData(DatabaseReference field, Object value){
         field.addListenerForSingleValueEvent(new ValueEventListener() {
@@ -436,7 +438,7 @@ public class SettingsActivity extends AppCompatActivity {
 
         private void turnPumpOn() {
             pump1.setChecked(true);
-            updateData(databaseReference.child("Relay").child("relay_1"), "0");
+            updateData(databaseReference.child("Relay").child("relay_1"), "1");
         }
 
         private void updateData(DatabaseReference field, Object value){
