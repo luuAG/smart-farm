@@ -204,16 +204,6 @@ public class SettingsActivity extends AppCompatActivity {
     }
 
     private void retrieveData() {
-        databaseReference.get().addOnCompleteListener(task -> {
-            if (task.isSuccessful()){
-                relaySnapshot = task.getResult().child("Relay");
-                sensorSnapshot = task.getResult().child("Sensor_Value");
-                setValueSnapshot = task.getResult().child("Set_Value");
-
-                bindDataToUI(relaySnapshot, sensorSnapshot, setValueSnapshot);
-            }
-        });
-
         databaseReference.addValueEventListener(new ValueEventListener() {
             @Override
             public void onDataChange(@NonNull DataSnapshot snapshot) {
@@ -225,11 +215,20 @@ public class SettingsActivity extends AppCompatActivity {
 
                 controlPumpsAsHumidityChanged();
             }
-
-
             @Override
             public void onCancelled(@NonNull DatabaseError error) {
                 Toast.makeText(SettingsActivity.this, "Fail to get data.", Toast.LENGTH_SHORT).show();
+            }
+        });
+
+        // run one time only
+        databaseReference.get().addOnCompleteListener(task -> {
+            if (task.isSuccessful()){
+                relaySnapshot = task.getResult().child("Relay");
+                sensorSnapshot = task.getResult().child("Sensor_Value");
+                setValueSnapshot = task.getResult().child("Set_Value");
+
+                bindDataToUI(relaySnapshot, sensorSnapshot, setValueSnapshot);
             }
         });
     }
@@ -262,16 +261,16 @@ public class SettingsActivity extends AppCompatActivity {
 
     private void bindDataToUI(DataSnapshot relaySnapshot, DataSnapshot sensorSnapshot, DataSnapshot setValueSnapshot) {
         synchronized (humid1){
-            System.out.println("HUMID1 UPDATED: " + humid1.get());
             humid1.set(sensorSnapshot.child("humi_soil_1").getValue(Long.class));
+            System.out.println("HUMID1 UPDATED: " + humid1.get());
         }
         synchronized (humid2){
+            humid2.set(sensorSnapshot.child("humi_soil_2").getValue(Long.class));            System.out.println("HUMID2 UPDATED: " + humid2.get());
             System.out.println("HUMID2 UPDATED: " + humid2.get());
-            humid2.set(sensorSnapshot.child("humi_soil_2").getValue(Long.class));
         }
         synchronized (humid3){
-            System.out.println("HUMID3 UPDATED: " + humid3.get());
             humid3.set(sensorSnapshot.child("humi_soil_3").getValue(Long.class));
+            System.out.println("HUMID3 UPDATED: " + humid3.get());
         }
         progressBar_humid1.setProgress(Math.toIntExact(humid1.get()));
         progressBar_humid2.setProgress(Math.toIntExact(humid2.get()));
@@ -281,16 +280,16 @@ public class SettingsActivity extends AppCompatActivity {
         txt_humid3.setText(humid3.get() + "%");
 
         synchronized (temp1){
-            System.out.println("TEMP1 UPDATED: " + temp1.get());
             temp1.set(sensorSnapshot.child("temp_soil_1").getValue(Long.class));
+            System.out.println("TEMP1 UPDATED: " + temp1.get());
         }
         synchronized (temp2){
-            System.out.println("TEMP2 UPDATED: " + temp2.get());
             temp2.set(sensorSnapshot.child("temp_soil_2").getValue(Long.class));
+            System.out.println("TEMP2 UPDATED: " + temp2.get());
         }
         synchronized (temp3){
-            System.out.println("TEMP3 UPDATED: " + temp3.get());
             temp3.set(sensorSnapshot.child("temp_soil_3").getValue(Long.class));
+            System.out.println("TEMP3 UPDATED: " + temp3.get());
         }
         txt_temp1.setText(temp1.get() + "°C");
         txt_temp2.setText(temp2.get() + "°C");
