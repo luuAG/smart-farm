@@ -68,12 +68,12 @@ public class SettingsActivity extends AppCompatActivity {
     MaterialButton syncButton;
     // Scheduler
     private ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(1);;
-    private boolean isSchedulerRunning = false;
     ScheduledFuture<?> syncJobHandler = null;
+    Runnable syncJob;
     // HTTP
     private static SyncHttpClient client = new SyncHttpClient ();
     static final String thingSpeakPostAPI = "https://api.thingspeak.com/update.json";
-    static final RequestParams rp = new RequestParams();
+    RequestParams rp;
 
 
     @Override
@@ -144,12 +144,10 @@ public class SettingsActivity extends AppCompatActivity {
         
         // sync data from firebase to thingspeak
         syncButton.setOnClickListener(view -> {
-            if (!isSchedulerRunning){
-                syncFirebaseToThingSpeak();
+            if (syncJobHandler == null || syncJobHandler.isCancelled()){
+                syncJobHandler = scheduler.scheduleAtFixedRate(syncJob,1L, 15L, TimeUnit.SECONDS);
                 ((MaterialButton) view).setText("Đồng bộ ThingSpeak: Đang bật");
-                isSchedulerRunning = true;
             } else {
-                isSchedulerRunning = false;
                 ((MaterialButton) view).setText("Đồng bộ ThingSpeak: Đang tắt");
                 syncJobHandler.cancel(true);
             }
@@ -157,51 +155,6 @@ public class SettingsActivity extends AppCompatActivity {
         });
     }
 
-    private void syncFirebaseToThingSpeak() {
-        Runnable syncJob = () -> {
-            rp.add("api_key", "OIC6SQI33DRM4H08");
-            synchronized (humid1){
-                rp.add("field4", String.valueOf(humid1.get()));
-            }
-            synchronized (humid2){
-                rp.add("field5", String.valueOf(humid2.get()));
-            }
-            synchronized (humid3){
-                rp.add("field6", String.valueOf(humid3.get()));
-            }
-            synchronized (temp1){
-                rp.add("field1", String.valueOf(temp1.get()));
-            }
-            synchronized (temp2){
-                rp.add("field2", String.valueOf(temp2.get()));
-            }
-            synchronized (temp3){
-                rp.add("field3", String.valueOf(temp3.get()));
-            }
-            client.post(thingSpeakPostAPI, rp, new JsonHttpResponseHandler() {
-                @Override
-                public void onSuccess(int statusCode, Header[] headers, JSONObject response) {
-                    System.out.println("SYNC TO THINGSPEAK: SUCCESS - " + response.toString());
-                }
-
-                @Override
-                public void onSuccess(int statusCode, Header[] headers, JSONArray response) {
-                    System.out.println("SYNC TO THINGSPEAK: SUCCESS - " + response.toString());
-                }
-
-                @Override
-                public void onFailure(int statusCode, Header[] headers, String responseString, Throwable throwable) {
-                    System.out.println("SYNC TO THINGSPEAK: FAIL - " + statusCode + " - " + throwable.getMessage());
-                }
-
-                @Override
-                public void onFailure(int statusCode, Header[] headers, Throwable throwable, JSONObject errorResponse) {
-                    System.out.println("SYNC TO THINGSPEAK: FAIL - " + errorResponse.toString());                }
-            });
-        };
-
-        syncJobHandler = scheduler.scheduleAtFixedRate(syncJob,1L, 15L, TimeUnit.SECONDS);
-    }
 
     private void retrieveData() {
         databaseReference.addValueEventListener(new ValueEventListener() {
@@ -260,40 +213,74 @@ public class SettingsActivity extends AppCompatActivity {
     }
 
     private void bindDataToUI(DataSnapshot relaySnapshot, DataSnapshot sensorSnapshot, DataSnapshot setValueSnapshot) {
+        rp = new RequestParams();
+        rp.add("api_key", "OIC6SQI33DRM4H08");
         synchronized (humid1){
             humid1.set(sensorSnapshot.child("humi_soil_1").getValue(Long.class));
+            progressBar_humid1.setProgress(Math.toIntExact(humid1.get()));
+            txt_humid1.setText(humid1.get() + "%");
+            rp.add("field4", String.valueOf(humid1.get()));
             System.out.println("HUMID1 UPDATED: " + humid1.get());
         }
         synchronized (humid2){
-            humid2.set(sensorSnapshot.child("humi_soil_2").getValue(Long.class));            System.out.println("HUMID2 UPDATED: " + humid2.get());
+            humid2.set(sensorSnapshot.child("humi_soil_2").getValue(Long.class));
+            progressBar_humid2.setProgress(Math.toIntExact(humid2.get()));
+            txt_humid2.setText(humid2.get() + "%");
+            rp.add("field5", String.valueOf(humid2.get()));
             System.out.println("HUMID2 UPDATED: " + humid2.get());
         }
         synchronized (humid3){
             humid3.set(sensorSnapshot.child("humi_soil_3").getValue(Long.class));
+            progressBar_humid3.setProgress(Math.toIntExact(humid3.get()));
+            txt_humid3.setText(humid3.get() + "%");
+            rp.add("field6", String.valueOf(humid3.get()));
             System.out.println("HUMID3 UPDATED: " + humid3.get());
         }
-        progressBar_humid1.setProgress(Math.toIntExact(humid1.get()));
-        progressBar_humid2.setProgress(Math.toIntExact(humid2.get()));
-        progressBar_humid3.setProgress(Math.toIntExact(humid3.get()));
-        txt_humid1.setText(humid1.get() + "%");
-        txt_humid2.setText(humid2.get() + "%");
-        txt_humid3.setText(humid3.get() + "%");
-
         synchronized (temp1){
             temp1.set(sensorSnapshot.child("temp_soil_1").getValue(Long.class));
+            txt_temp1.setText(temp1.get() + "°C");
+            rp.add("field1", String.valueOf(temp1.get()));
             System.out.println("TEMP1 UPDATED: " + temp1.get());
         }
         synchronized (temp2){
             temp2.set(sensorSnapshot.child("temp_soil_2").getValue(Long.class));
+            txt_temp2.setText(temp2.get() + "°C");
+            rp.add("field2", String.valueOf(temp2.get()));
             System.out.println("TEMP2 UPDATED: " + temp2.get());
         }
         synchronized (temp3){
             temp3.set(sensorSnapshot.child("temp_soil_3").getValue(Long.class));
+            txt_temp3.setText(temp3.get() + "°C");
+            rp.add("field3", String.valueOf(temp3.get()));
             System.out.println("TEMP3 UPDATED: " + temp3.get());
         }
-        txt_temp1.setText(temp1.get() + "°C");
-        txt_temp2.setText(temp2.get() + "°C");
-        txt_temp3.setText(temp3.get() + "°C");
+        // create sync job
+        System.out.println("DATA to sync: "+humid1.get()+" "+humid2.get()+" " + humid3.get());
+        syncJob = () -> {
+            client.post(thingSpeakPostAPI, rp, new JsonHttpResponseHandler() {
+                @Override
+                public void onSuccess(int statusCode, Header[] headers, JSONObject response) {
+                    System.out.println("SYNC TO THINGSPEAK: SUCCESS - " + response.toString());
+                }
+
+                @Override
+                public void onSuccess(int statusCode, Header[] headers, JSONArray response) {
+                    System.out.println("SYNC TO THINGSPEAK: SUCCESS - " + response.toString());
+                }
+
+                @Override
+                public void onFailure(int statusCode, Header[] headers, String responseString, Throwable throwable) {
+                    System.out.println("SYNC TO THINGSPEAK: FAIL - " + statusCode + " - " + throwable.getMessage());
+                }
+
+                @Override
+                public void onFailure(int statusCode, Header[] headers, Throwable throwable, JSONObject errorResponse) {
+                    System.out.println("SYNC TO THINGSPEAK: FAIL - " + throwable.getMessage());
+                }
+            });
+        };
+
+
 
         humidThreshold = Long.parseLong(setValueSnapshot.child("Soil").getValue(String.class));
         humidThresholdEditText.setText(humidThreshold.toString());
