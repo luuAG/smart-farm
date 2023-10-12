@@ -417,6 +417,8 @@ public class SettingsActivity extends AppCompatActivity {
 
                 if(van1.isChecked() || van2.isChecked() || van3.isChecked()){
                     turnPumpOn();
+                } else if(!van1.isChecked() && !van2.isChecked() && !van3.isChecked()) {
+                    turnPumpOff();
                 }
             }
 
@@ -424,9 +426,13 @@ public class SettingsActivity extends AppCompatActivity {
 
         private void turnPumpOn() {
             pump1.setChecked(true);
-            updateData(databaseReference.child("Relay").child("relay_1"), "1");
+            updateData(databaseReference.child("Relay").child("relay_1"), "0");
         }
 
+        private void turnPumpOff() {
+            pump1.setChecked(false);
+            updateData(databaseReference.child("Relay").child("relay_1"), "1");
+        }
         private void updateData(DatabaseReference field, Object value){
             field.addListenerForSingleValueEvent(new ValueEventListener() {
                 @Override
